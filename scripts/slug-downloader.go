@@ -6,6 +6,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"runtime"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/psilin/sluggin/db"
 )
 
 const (
@@ -21,6 +25,17 @@ type NameResponse struct {
 		Title string `json:"title"`
 		URL   string `json:"slug"`
 	} `json:"results"`
+}
+
+type SlugResponse struct {
+	Id       int      `json:"id"`
+	Title    string   `json:"title"`
+	Slug     string   `json:"slug"`
+	Url      string   `json:"url"`
+	Locale   string   `json:"locale"`
+	Products []string `json:"products"`
+	Topics   []string `json:"topics"`
+	Summary  string   `json:"summary"`
 }
 
 func getSlugNames(out chan string, verbose bool, num int) {
@@ -88,12 +103,78 @@ func getSlugNames(out chan string, verbose bool, num int) {
 	close(out)
 }
 
-func DownloadSlugs(verbose bool, num int, path string) {
+func processSlug(verbose bool, idx int, in chan string, out chan [2]int, dbase *sqlx.DB) {
+	errors := 0
+	successes := 0
+	for s := range in {
+		if verbose {
+			fmt.Printf("%v started processing %v\n", idx, s)
+		}
+		errors += 1
+		resp, err := http.Get(URL + s)
+		if err != nil {
+			fmt.Printf("Error getting: %v\n", err)
+			continue
+		}
+
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Printf("Error reading: %v\n", err)
+			continue
+		}
+
+		var result SlugResponse
+		if err := json.Unmarshal(body, &result); err != nil {
+			resp.Body.Close()
+			fmt.Printf("Error unmarshaling: %v\n", err)
+			continue
+		}
+
+		// FIX ME insert into DB here
+
+		if verbose {
+			fmt.Printf("%v finished processing %v\n", idx, s)
+		}
+		errors -= 1
+		successes += 1
+	}
+	out <- [2]int{successes, errors}
+}
+
+func DownloadSlugs(verbose bool, num int) {
+	// FIX ME extract connection string from here
+	dbase, err := db.InitDb("user=postgres password=postgres host=localhost dbname=postgres sslmode=disable")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = db.InitialCleanup(dbase)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	in := make(chan string, MaxChannelLength)
+	out := make(chan [2]int, runtime.NumCPU())
 	go getSlugNames(in, verbose, num)
-	cnt := 0
-	for sl := range in {
-		fmt.Printf("%v %v\n", cnt, sl)
-		cnt += 1
+
+	if verbose {
+		fmt.Printf("Detected %v CPUs.\n", runtime.NumCPU())
+	}
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go processSlug(verbose, i, in, out, dbase)
+	}
+
+	errors := 0
+	successes := 0
+	for i := 0; i < runtime.NumCPU(); i++ {
+		// use this instead of wait group
+		res := <-out
+		successes += res[0]
+		errors += res[1]
+	}
+	fmt.Printf("Processed %v slugs of %v, success: %v, error: %v\n", successes+errors, num, successes, errors)
+
+	err = db.CloseDb(dbase)
+	if err != nil {
+		log.Fatalln(err)
 	}
 }
