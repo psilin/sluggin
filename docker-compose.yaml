@@ -13,6 +13,16 @@ services:
         ports:
             - '5432:5432'
         volumes:
-            - ./postgres-data:/var/lib/postgresql/data
+            - ./volumes/postgres-data:/var/lib/postgresql/data
             # copy the sql script to create tables
             - ./sql/create-tables.sql:/docker-entrypoint-initdb.d/init.sql
+    gin:
+        build:
+            context: ./
+            dockerfile: Dockerfile
+            labels:
+                - gin
+        ports:
+            - "8080:8080"
+        depends_on:
+            - postgres
