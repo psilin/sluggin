@@ -9,6 +9,7 @@ import (
 	"runtime"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/psilin/sluggin/core"
 	"github.com/psilin/sluggin/db"
 )
 
@@ -16,27 +17,6 @@ const (
 	URL              string = "https://support.allizom.org/api/1/kb/"
 	MaxChannelLength int    = 16
 )
-
-type NameResponse struct {
-	Count    int    `json:"count"`
-	Next     string `json:"next"`
-	Previous string `json:"prev"`
-	Slugs    []struct {
-		Title string `json:"title"`
-		URL   string `json:"slug"`
-	} `json:"results"`
-}
-
-type SlugResponse struct {
-	Id       int      `json:"id"`
-	Title    string   `json:"title"`
-	Slug     string   `json:"slug"`
-	Url      string   `json:"url"`
-	Locale   string   `json:"locale"`
-	Products []string `json:"products"`
-	Topics   []string `json:"topics"`
-	Summary  string   `json:"summary"`
-}
 
 func getSlugNames(out chan string, verbose bool, num int) {
 	resp, err := http.Get(URL)
@@ -49,7 +29,7 @@ func getSlugNames(out chan string, verbose bool, num int) {
 		log.Fatalln(err)
 	}
 
-	var result NameResponse
+	var result core.SlugNames
 	if err := json.Unmarshal(body, &result); err != nil {
 		log.Fatalln(err)
 	}
@@ -83,7 +63,7 @@ func getSlugNames(out chan string, verbose bool, num int) {
 			log.Fatalln(err)
 		}
 
-		var result NameResponse
+		var result core.SlugNames
 		if err := json.Unmarshal(body, &result); err != nil {
 			log.Fatalln(err)
 		}
@@ -123,17 +103,22 @@ func processSlug(verbose bool, idx int, in chan string, out chan [2]int, dbase *
 			continue
 		}
 
-		var result SlugResponse
+		var result core.Slug
 		if err := json.Unmarshal(body, &result); err != nil {
 			resp.Body.Close()
 			fmt.Printf("Error unmarshaling: %v\n", err)
 			continue
 		}
 
-		// FIX ME insert into DB here
+		id, err := db.AddSlug(dbase, &result)
+		if err != nil {
+			resp.Body.Close()
+			fmt.Printf("Error DB interaction: %v\n", err)
+			continue
+		}
 
 		if verbose {
-			fmt.Printf("%v finished processing %v\n", idx, s)
+			fmt.Printf("%v finished processing %v (in DB %v)\n", idx, s, id)
 		}
 		errors -= 1
 		successes += 1
@@ -141,9 +126,8 @@ func processSlug(verbose bool, idx int, in chan string, out chan [2]int, dbase *
 	out <- [2]int{successes, errors}
 }
 
-func DownloadSlugs(verbose bool, num int) {
-	// FIX ME extract connection string from here
-	dbase, err := db.InitDb("user=postgres password=postgres host=localhost dbname=postgres sslmode=disable")
+func DownloadSlugs(verbose bool, num int, dsn string) {
+	dbase, err := db.InitDb(dsn)
 	if err != nil {
 		log.Fatalln(err)
 	}

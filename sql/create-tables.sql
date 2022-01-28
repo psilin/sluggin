@@ -1,6 +1,7 @@
 -- create table
 CREATE TABLE slugs (
-    id INT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    extid INT NOT NULL,
     title VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL,
     url VARCHAR(255) NOT NULL,
