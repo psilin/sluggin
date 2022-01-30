@@ -1,14 +1,14 @@
 package core
 
 type Slug struct {
-	Id       int      `json:"id"`
-	Title    string   `json:"title"`
-	Slug     string   `json:"slug"`
-	Url      string   `json:"url"`
-	Locale   string   `json:"locale"`
-	Products []string `json:"products"`
-	Topics   []string `json:"topics"`
-	Summary  string   `json:"summary"`
+	Id       int      `json:"id" binding:"required"`
+	Title    string   `json:"title" binding:"required"`
+	Slug     string   `json:"slug" binding:"required"`
+	Url      string   `json:"url" binding:"required"`
+	Locale   string   `json:"locale" binding:"required"`
+	Products []string `json:"products" binding:"required"`
+	Topics   []string `json:"topics" binding:"required"`
+	Summary  string   `json:"summary" binding:"required"`
 }
 
 type OutSlug struct {

@@ -79,3 +79,28 @@ func GetSlugs(db *sqlx.DB, limit, offset int) ([]core.OutSlug, error) {
 	}
 	return slugs, nil
 }
+
+func GetSlugById(db *sqlx.DB, id int) (*core.OutSlug, error) {
+	slugDb := dbInternalSlug{}
+	err := db.Get(&slugDb, "SELECT * from slugs WHERE id=$1", id)
+	if err != nil {
+		return nil, err
+	}
+	out := convertToOut(&slugDb)
+	return out, nil
+}
+
+func DeleteSlugById(db *sqlx.DB, id int) error {
+	res, err := db.Exec("DELETE FROM slugs WHERE id=$1", id)
+	if err != nil {
+		return err
+	}
+	rowsNum, err_inner := res.RowsAffected()
+	if err_inner != nil {
+		return err_inner
+	}
+	if rowsNum == 0 {
+		return fmt.Errorf("no slug with id %d in db", id)
+	}
+	return err
+}
