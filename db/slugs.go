@@ -36,3 +36,46 @@ func AddSlug(db *sqlx.DB, slug *core.Slug) (int, error) {
 
 	return id, nil
 }
+
+type dbInternalSlug struct {
+	Id       int    `db:"id"`
+	ExtId    int    `db:"extid"`
+	Title    string `db:"title"`
+	Slug     string `db:"slug"`
+	Url      string `db:"url"`
+	Locale   string `db:"locale"`
+	Products string `db:"products"`
+	Topics   string `db:"topics"`
+	Summary  string `db:"summary"`
+}
+
+func convertToOut(in *dbInternalSlug) *core.OutSlug {
+	var out core.OutSlug
+	out.DbId = in.Id
+	out.Slg.Id = in.ExtId
+	out.Slg.Title = in.Title
+	out.Slg.Slug = in.Slug
+	out.Slg.Url = in.Url
+	out.Slg.Locale = in.Locale
+	r := strings.Split(in.Products, "|")
+	out.Slg.Products = append(out.Slg.Products, r...)
+	r = strings.Split(in.Topics, "|")
+	out.Slg.Topics = append(out.Slg.Topics, r...)
+	out.Slg.Summary = in.Summary
+	return &out
+}
+
+func GetSlugs(db *sqlx.DB, limit, offset int) ([]core.OutSlug, error) {
+	slugs := []core.OutSlug{}
+	slugsDB := []dbInternalSlug{}
+	err := db.Select(&slugsDB, "SELECT * FROM slugs limit $1 offset $2", limit, offset)
+	if err != nil {
+		return slugs, err
+	}
+
+	for _, sdb := range slugsDB {
+		out := convertToOut(&sdb)
+		slugs = append(slugs, *out)
+	}
+	return slugs, nil
+}

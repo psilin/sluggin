@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -11,11 +12,31 @@ import (
 	"time"
 
 	"github.com/psilin/sluggin/api"
+	"github.com/spf13/viper"
 )
 
 func main() {
-	// FIXME do initialization here
-	router := api.InitRouter()
+	// Process config
+	path := flag.String("c", "./config", "Path to config file")
+	flag.Parse()
+
+	viper.SetConfigName("config.yaml")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(*path)
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Fatalf("fatal error config file: %v", err)
+	}
+
+	// Initialize environment object
+	var env api.Env
+	err = env.Init(viper.GetString("dsn"))
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	// Create router
+	router := api.InitRouter(&env)
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: router,
@@ -46,6 +67,12 @@ func main() {
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	// Cleanup environment object
+	err = env.Teardown()
+	if err != nil {
+		log.Fatalf("%v", err)
 	}
 
 	log.Println("Server exiting")

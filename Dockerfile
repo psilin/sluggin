@@ -13,4 +13,4 @@ RUN go build -o ./cmd/server/server ./cmd/server/main.go
 
 EXPOSE $PORT
 
-ENTRYPOINT ["./cmd/server/server"]
+ENTRYPOINT ["./cmd/server/server", "-c", "./config"]

@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func InitRouter() *gin.Engine {
+func InitRouter(e *Env) *gin.Engine {
 	// Creates a router without any middleware by default
 	r := gin.New()
 
@@ -24,14 +24,14 @@ func InitRouter() *gin.Engine {
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}))
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-	r.GET("/panic", func(c *gin.Context) {
+	r.GET("/slugs", e.GetSlugs)
+	r.POST("/slugs", e.AddSlug)
+	r.GET("slug/:id", e.GetSlugById)
+	r.DELETE("slug/:id", e.DeleteSlugById)
+
+	r.GET("/internal/panic", func(c *gin.Context) {
 		// panic with a string -- the custom middleware could save this to a database or report it to the user
-		panic("foo")
+		panic("panic emulation")
 	})
 	return r
 }

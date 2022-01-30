@@ -11,6 +11,11 @@ type Slug struct {
 	Summary  string   `json:"summary"`
 }
 
+type OutSlug struct {
+	DbId int  `json:"dbid"`
+	Slg  Slug `json:"slug"`
+}
+
 type SlugNames struct {
 	Count    int    `json:"count"`
 	Next     string `json:"next"`
